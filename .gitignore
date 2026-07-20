@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.env
+*.env
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+*.pt
+federated_aml_model.pt
