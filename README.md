@@ -56,6 +56,21 @@ FRAUD_RATE        = 0.02
 
 ---
 
+## Testing
+
+Install the dependencies and run the suite:
+
+```bash
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt pytest   # Linux/macOS: .venv/bin/pip
+.venv/Scripts/python -m pytest -v
+```
+
+Run the end-to-end federated simulation with `python simulation_runner.py`.
+Note that installing PyTorch takes several minutes on a fresh environment.
+
+---
+
 ## Project structure
 
 ```
