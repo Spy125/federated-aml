@@ -39,10 +39,25 @@ python simulation_runner.py
 Output per round:
 
 ```
-Round  1 | AUROC: 0.8214 | F1: 0.4123 | Recall: 0.5810 | Precision: 0.3201 | Acc: 0.9612
-Round  2 | AUROC: 0.8531 | F1: 0.4672 | Recall: 0.6102 | Precision: 0.3784 | Acc: 0.9649
+Round  1 | AUROC: 0.9997 | F1: 1.0000 | Recall: 1.0000 | Precision: 1.0000 | Acc: 1.0000
+Round  2 | AUROC: 0.9997 | F1: 1.0000 | Recall: 1.0000 | Precision: 1.0000 | Acc: 1.0000
 ...
 ```
+
+### Reading these numbers
+
+The scores are near-perfect because the transactions are synthetic and the two
+classes are drawn from distributions that barely overlap: a single feature
+separates fraud from legitimate activity with an AUROC of 0.994, before any
+model is trained. The results demonstrate that the federated averaging and
+evaluation pipeline works end to end, not that the classifier is competitive on
+real anti-money-laundering data. Substituting a dataset with genuinely
+overlapping classes is the obvious next step.
+
+Training weights the fraud class by `fraud_class_weight` to counter the 2% base
+rate, which leaves the model's probabilities uncalibrated. The decision
+threshold is therefore chosen on a separate validation split each round rather
+than fixed at 0.5, and the held-out test set is used only for reporting.
 
 Configuration is at the top of `simulation_runner.py`:
 

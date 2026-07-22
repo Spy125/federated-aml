@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from client.data_loader import generate_bank_data, make_dataloader
 from client.local_trainer import LocalTrainer, TrainConfig
 from server.central_aggregator import CentralAggregator
-from server.evaluator import Evaluator
+from server.evaluator import Evaluator, balanced_threshold
 from shared.model_definition import ModelConfig
 
 NUM_BANKS        = 3
@@ -71,14 +71,25 @@ def run_simulation():
     test_ds = generate_bank_data(bank_id=99, n_samples=TEST_SAMPLES,
                                   fraud_rate=FRAUD_RATE, seed=9999)
     test_dl = make_dataloader(test_ds, batch_size=256, shuffle=False)
-    print(f"  Test set: {len(test_ds):,} transactions | Fraud: {test_ds.n_fraud}\n")
+    print(f"  Test set: {len(test_ds):,} transactions | Fraud: {test_ds.n_fraud}")
+
+    # Separate validation split, used only to choose the decision threshold so
+    # that the test set stays untouched for reporting.
+    val_ds = generate_bank_data(bank_id=98, n_samples=TEST_SAMPLES,
+                                fraud_rate=FRAUD_RATE, seed=8888)
+    val_dl = make_dataloader(val_ds, batch_size=256, shuffle=False)
+    print(f"  Validation set: {len(val_ds):,} transactions | Fraud: {val_ds.n_fraud}\n")
 
     # set up federation
     model_config = ModelConfig()
     aggregator   = CentralAggregator(model_config)
-    evaluator    = Evaluator(threshold=0.5)
     train_config = TrainConfig(learning_rate=LEARNING_RATE,
                                local_epochs=LOCAL_EPOCHS, batch_size=BATCH_SIZE)
+    # Training upweights the fraud class, so the calibrated cutoff is not 0.5.
+    decision_threshold = balanced_threshold(train_config.fraud_class_weight)
+    evaluator    = Evaluator(threshold=decision_threshold)
+    print(f"  Decision threshold: {decision_threshold:.3f} "
+          f"(pos_weight={train_config.fraud_class_weight:g})")
     trainers = [LocalTrainer(bank_id=i, config=train_config) for i in range(NUM_BANKS)]
 
     # baseline before training
@@ -102,8 +113,11 @@ def run_simulation():
                   f"acc={result.train_accuracy:.3f} | n={result.n_samples:,}")
 
         aggregator.aggregate(client_results)
+        # Retune the cutoff on validation before scoring the test set: the
+        # model's probability scale shifts as training proceeds.
+        tuned = evaluator.tune_threshold(aggregator.global_model, val_dl)
         metrics = evaluator.evaluate(aggregator.global_model, test_dl, round_num=round_num)
-        print(f"  -> {metrics.summary_line()}\n")
+        print(f"  -> {metrics.summary_line()} | threshold={tuned:.4f}\n")
 
     evaluator.print_history()
     aggregator.save(MODEL_SAVE_PATH)
