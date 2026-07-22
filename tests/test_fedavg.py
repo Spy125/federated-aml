@@ -18,6 +18,16 @@ def _make_weights(val: float, config: ModelConfig) -> dict:
     return {k: torch.full_like(v, val) for k, v in m.state_dict().items()}
 
 
+def _averaged_params(weights: dict) -> list:
+    """The tensors FedAvg actually averages.
+
+    Integer buffers such as BatchNorm's num_batches_tracked are counters, not
+    learnable parameters. They keep their int64 dtype through load_state_dict,
+    so comparing them against a float with torch.allclose raises a dtype error.
+    """
+    return [v for v in weights.values() if torch.is_floating_point(v)]
+
+
 def _make_result(bank_id: int, val: float, n_samples: int, config: ModelConfig):
     from client.local_trainer import LocalTrainResult
     return LocalTrainResult(
@@ -55,7 +65,7 @@ class TestFedAvg:
         r1 = _make_result(1, 4.0, 100, config)
         aggregator.aggregate([r0, r1])
         weights = aggregator.global_weights
-        for v in weights.values():
+        for v in _averaged_params(weights):
             assert torch.allclose(v, torch.tensor(3.0), atol=1e-5)
 
     def test_large_bank_dominates(self, aggregator, config):
@@ -64,14 +74,14 @@ class TestFedAvg:
         r1 = _make_result(1, 1.0, 100, config)
         aggregator.aggregate([r0, r1])
         weights = aggregator.global_weights
-        for v in weights.values():
+        for v in _averaged_params(weights):
             assert torch.allclose(v, torch.tensor(0.1), atol=1e-5)
 
     def test_single_bank(self, aggregator, config):
         r = _make_result(0, 7.0, 500, config)
         aggregator.aggregate([r])
         weights = aggregator.global_weights
-        for v in weights.values():
+        for v in _averaged_params(weights):
             assert torch.allclose(v, torch.tensor(7.0), atol=1e-5)
 
     def test_empty_results_raises(self, aggregator):

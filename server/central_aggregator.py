@@ -64,9 +64,17 @@ class CentralAggregator:
         for result in client_results:
             weight = result.n_samples / total_samples
             for key, tensor in result.weights.items():
+                # Integer buffers (for example BatchNorm's num_batches_tracked)
+                # cannot hold a weighted mean, and accumulating a float into a
+                # zeros_like copy of them raises a dtype error. Carry the first
+                # client's value through instead of averaging.
+                if not torch.is_floating_point(tensor):
+                    if key not in avg_weights:
+                        avg_weights[key] = tensor.clone()
+                    continue
                 if key not in avg_weights:
                     avg_weights[key] = torch.zeros_like(tensor)
-                avg_weights[key] += weight * tensor.float()
+                avg_weights[key] += weight * tensor
 
         self._global_model.set_weights(avg_weights)
 
