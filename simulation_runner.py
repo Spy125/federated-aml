@@ -33,6 +33,12 @@ FRAUD_RATE       = 0.02
 BATCH_SIZE       = 64
 LEARNING_RATE    = 1e-3
 MODEL_SAVE_PATH  = "federated_aml_model.pt"
+SEED             = 42
+
+# Seed both libraries so a run is reproducible: the data generator already
+# takes seeds, and this pins PyTorch's weight initialisation and shuffling so
+# the reported metrics are stable from one run to the next.
+torch.manual_seed(SEED)
 
 logging.basicConfig(
     level=logging.INFO,

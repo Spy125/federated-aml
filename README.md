@@ -44,6 +44,9 @@ Round  2 | AUROC: 0.9997 | F1: 1.0000 | Recall: 1.0000 | Precision: 1.0000 | Acc
 ...
 ```
 
+The run is seeded (`SEED` in `simulation_runner.py`), so these figures are
+reproducible from one run to the next.
+
 ### Reading these numbers
 
 The scores are near-perfect because the transactions are synthetic and the two
